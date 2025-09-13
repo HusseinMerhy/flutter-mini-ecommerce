@@ -4,21 +4,22 @@ import com.example.demo.filter.JwtRequestFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 
 @Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
 	@Autowired
@@ -37,42 +38,34 @@ public class SecurityConfig {
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		http
+		http.cors().and()
 				.authorizeHttpRequests(auth -> auth
+						// public/h2 and auth endpoints
 						.requestMatchers("/h2-console/**").permitAll()
 						.requestMatchers("/api/auth/**").permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/products").permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/products/*").permitAll()
-
-						// Product admin endpoints
-						.requestMatchers(HttpMethod.POST, "/api/products").hasAuthority("ROLE_ADMIN")
-						.requestMatchers(HttpMethod.PUT, "/api/products/*").hasAuthority("ROLE_ADMIN")
-						.requestMatchers(HttpMethod.DELETE, "/api/products/*").hasAuthority("ROLE_ADMIN")
-						.requestMatchers(HttpMethod.GET, "/api/products/low-stock").hasAuthority("ROLE_ADMIN")
-
-						// Order endpoints
-						.requestMatchers(HttpMethod.POST, "/api/orders").authenticated()
-						.requestMatchers(HttpMethod.GET, "/api/orders/my-orders").authenticated()
-						.requestMatchers(HttpMethod.GET, "/api/orders/*").authenticated()
-
-						// Admin order endpoints
-						.requestMatchers(HttpMethod.GET, "/api/orders/admin/**").hasAuthority("ROLE_ADMIN")
-						.requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasAuthority("ROLE_ADMIN")
-
+						// public product reads
+						.requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+						// admin area - guarded
+						.requestMatchers("/api/admin/**").hasRole("ADMIN")
+						.requestMatchers(HttpMethod.POST, "/api/products").hasRole("ADMIN")
+						.requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
+						.requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+						// order endpoints - allow authenticated users to place orders and view their orders
+						.requestMatchers(HttpMethod.POST, "/api/orders").hasAnyRole("USER", "ADMIN")
+						.requestMatchers(HttpMethod.GET, "/api/orders/my-orders").hasAnyRole("USER", "ADMIN")
+						// admin order endpoints (if used)
+						.requestMatchers(HttpMethod.GET, "/api/orders/admin/**").hasRole("ADMIN")
+						// everything else must be authenticated
 						.anyRequest().authenticated()
 				)
 				.headers(headers -> headers.frameOptions().disable())
-				.csrf(csrf -> csrf
-						.ignoringRequestMatchers("/h2-console/**")
-						.ignoringRequestMatchers("/api/**")
-				)
+				.csrf(csrf -> csrf.disable()) // stateless REST API - disabled (H2 console is already allowed)
 				.sessionManagement(session -> session
 						.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
 				);
 
-		// Add JWT filter
+		// JWT filter
 		http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
-
 		return http.build();
 	}
 }
