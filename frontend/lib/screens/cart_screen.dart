@@ -36,12 +36,14 @@ class _CartScreenState extends State<CartScreen> {
 
       final items = cart.getOrderItems();
 
+      // Debug: Print what we're about to send
       print('Sending order with items: $items');
 
       final response = await ApiService.createOrder(items);
 
       if (!mounted) return;
 
+      // Handle different response formats from backend
       final orderId = response is Map
           ? (response['id'] ?? response['orderId'] ?? 'Unknown')
           : 'Unknown';
@@ -54,8 +56,10 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
+      // Clear cart only after successful placement
       cart.clearCart();
 
+      // Navigate to orders screen
       Navigator.pushReplacementNamed(context, '/orders');
     } catch (e) {
       final err = e.toString().replaceAll('Exception: ', '');
@@ -122,6 +126,21 @@ class _CartScreenState extends State<CartScreen> {
             style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
           const SizedBox(height: 24),
+
+          // View Orders Button (NEW)
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushNamed(context, '/orders');
+            },
+            icon: const Icon(Icons.history),
+            label: const Text('View My Orders'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Continue Shopping Button
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pushReplacementNamed(context, '/products');
@@ -169,7 +188,7 @@ class _CartScreenState extends State<CartScreen> {
             ),
             const SizedBox(width: 16),
 
-
+            // Product details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,6 +311,8 @@ class _CartScreenState extends State<CartScreen> {
           ],
 
           const SizedBox(height: 20),
+
+          // Place Order Button
           ElevatedButton(
             onPressed: _isPlacingOrder ? null : _placeOrder,
             style: ElevatedButton.styleFrom(
@@ -309,6 +330,30 @@ class _CartScreenState extends State<CartScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
+
+          const SizedBox(height: 12),
+
+          // View Orders Button (NEW)
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/orders');
+            },
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.history, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'View My Orders',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -323,6 +368,14 @@ class _CartScreenState extends State<CartScreen> {
       appBar: AppBar(
         title: const Text('Your Cart'),
         actions: [
+          // View Orders Button in AppBar (NEW)
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.pushNamed(context, '/orders');
+            },
+            tooltip: 'View Orders',
+          ),
           if (itemCount > 0)
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -386,6 +439,7 @@ class _CartScreenState extends State<CartScreen> {
                 ? _buildEmptyCart()
                 : RefreshIndicator(
               onRefresh: () async {
+                // This is just a placeholder - in a real app you might refresh product data
                 return Future.delayed(const Duration(seconds: 1));
               },
               child: ListView.builder(
@@ -398,6 +452,7 @@ class _CartScreenState extends State<CartScreen> {
             ),
           ),
 
+          // Order summary (only shown when cart has items)
           if (itemCount > 0) _buildOrderSummary(cart),
         ],
       ),

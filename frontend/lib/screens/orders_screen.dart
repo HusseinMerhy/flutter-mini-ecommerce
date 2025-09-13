@@ -32,7 +32,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       if (!mounted) return;
 
       setState(() {
-        orders = ordersList;
+        orders = ordersList ?? []; // Handle null case
         isLoading = false;
       });
     } catch (e) {
