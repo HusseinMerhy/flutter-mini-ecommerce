@@ -4,6 +4,7 @@ import com.example.demo.dto.OrderDTO;
 import com.example.demo.dto.OrderItemDTO;
 import com.example.demo.dto.OrderItemRequest;
 import com.example.demo.model.Order;
+import com.example.demo.model.OrderItem;
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.OrderService;
@@ -15,14 +16,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/orders")
+@CrossOrigin
 public class OrderController {
 
 	@Autowired
@@ -31,18 +31,21 @@ public class OrderController {
 	@Autowired
 	private UserRepository userRepository;
 
+	// Place an order (authenticated users)
 	@PostMapping
 	public ResponseEntity<?> createOrder(
 			@AuthenticationPrincipal UserDetails userDetails,
 			@RequestBody List<OrderItemRequest> orderItemRequests) {
 		try {
+			if (userDetails == null) {
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+			}
+
 			User user = userRepository.findByEmail(userDetails.getUsername())
 					.orElseThrow(() -> new RuntimeException("User not found"));
 			Long userId = user.getId();
 
 			Order order = orderService.createOrder(userId, orderItemRequests);
-
-			// Convert to DTO
 			OrderDTO orderDTO = convertToDTO(order);
 
 			return ResponseEntity.status(HttpStatus.CREATED).body(orderDTO);
@@ -51,32 +54,44 @@ public class OrderController {
 		}
 	}
 
-	// Helper method to handle both request formats
-	private List<OrderItemRequest> convertToOrderItemRequests(List<Object> orderItems) {
-		List<OrderItemRequest> requests = new ArrayList<>();
-
-		for (Object item : orderItems) {
-			if (item instanceof Map) {
-				Map<String, Object> itemMap = (Map<String, Object>) item;
-				OrderItemRequest request = new OrderItemRequest();
-
-				// Handle both formats: with "productId" or with "product" object
-				if (itemMap.containsKey("productId")) {
-					request.setProductId(Long.valueOf(itemMap.get("productId").toString()));
-					request.setQuantity(Integer.valueOf(itemMap.get("quantity").toString()));
-				} else if (itemMap.containsKey("product")) {
-					Map<String, Object> productMap = (Map<String, Object>) itemMap.get("product");
-					request.setProductId(Long.valueOf(productMap.get("id").toString()));
-					request.setQuantity(Integer.valueOf(itemMap.get("quantity").toString()));
-				}
-
-				requests.add(request);
+	// User order history
+	@GetMapping("/my-orders")
+	public ResponseEntity<List<Order>> getUserOrders(@AuthenticationPrincipal UserDetails userDetails) {
+		try {
+			if (userDetails == null) {
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 			}
-		}
 
-		return requests;
+			User user = userRepository.findByEmail(userDetails.getUsername())
+					.orElseThrow(() -> new RuntimeException("User not found"));
+			Long userId = user.getId();
+
+			List<Order> orders = orderService.getUserOrders(userId);
+			return ResponseEntity.ok(orders);
+		} catch (RuntimeException e) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		}
 	}
-	// Helper method to convert Order to OrderDTO
+
+	@GetMapping("/{id}")
+	public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
+		Optional<Order> order = orderService.getOrderById(id);
+		return order.map(ResponseEntity::ok)
+				.orElse(ResponseEntity.notFound().build());
+	}
+
+	@PutMapping("/{id}/status")
+	public ResponseEntity<Order> updateOrderStatus(
+			@PathVariable Long id,
+			@RequestParam String status) {
+		try {
+			Order order = orderService.updateOrderStatus(id, status);
+			return ResponseEntity.ok(order);
+		} catch (RuntimeException e) {
+			return ResponseEntity.notFound().build();
+		}
+	}
+
 	private OrderDTO convertToDTO(Order order) {
 		List<OrderItemDTO> itemDTOs = order.getItems().stream()
 				.map(item -> new OrderItemDTO(
@@ -98,49 +113,5 @@ public class OrderController {
 				order.getStatus(),
 				itemDTOs
 		);
-	}
-
-	@GetMapping("/my-orders")
-	public ResponseEntity<List<Order>> getUserOrders(@AuthenticationPrincipal UserDetails userDetails) {
-		try {
-			// Get user by email from UserDetails
-			User user = userRepository.findByEmail(userDetails.getUsername())
-					.orElseThrow(() -> new RuntimeException("User not found"));
-			Long userId = user.getId();
-
-			List<Order> orders = orderService.getUserOrders(userId);
-			return ResponseEntity.ok(orders);
-		} catch (RuntimeException e) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-		}
-	}
-
-	@GetMapping("/admin/all-orders")
-	public ResponseEntity<List<Order>> getAllOrders() {
-		try {
-			List<Order> orders = orderService.getAllOrders();
-			return ResponseEntity.ok(orders);
-		} catch (RuntimeException e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-		}
-	}
-
-	@GetMapping("/{id}")
-	public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
-		Optional<Order> order = orderService.getOrderById(id);
-		return order.map(ResponseEntity::ok)
-				.orElse(ResponseEntity.notFound().build());
-	}
-
-	@PutMapping("/{id}/status")
-	public ResponseEntity<Order> updateOrderStatus(
-			@PathVariable Long id,
-			@RequestParam String status) {
-		try {
-			Order order = orderService.updateOrderStatus(id, status);
-			return ResponseEntity.ok(order);
-		} catch (RuntimeException e) {
-			return ResponseEntity.notFound().build();
-		}
 	}
 }

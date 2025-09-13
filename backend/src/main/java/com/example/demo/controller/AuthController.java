@@ -1,9 +1,9 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.User;
-import com.example.demo.service.CustomUserDetailsService;
 import com.example.demo.service.UserService;
 import com.example.demo.util.JwtTokenUtil;
+import com.example.demo.service.CustomUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin
 public class AuthController {
 
 	@Autowired
@@ -63,7 +64,6 @@ public class AuthController {
 		}
 	}
 
-	// Make LoginRequest a static class to avoid serialization issues
 	public static class LoginRequest {
 		private String email;
 		private String password;
