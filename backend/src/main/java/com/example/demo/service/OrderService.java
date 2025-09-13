@@ -48,17 +48,14 @@ public class OrderService {
 		return orderRepository.save(order);
 	}
 
-	// Get all orders (for admin)
 	public List<Order> getAllOrders() {
 		return orderRepository.findAllByOrderByOrderDateDesc();
 	}
 
-	// Get order by ID
 	public Optional<Order> getOrderById(Long id) {
 		return orderRepository.findById(id);
 	}
 
-	// Update order status
 	public Order updateOrderStatus(Long orderId, String status) {
 		Order order = orderRepository.findById(orderId)
 				.orElseThrow(() -> new RuntimeException("Order not found"));

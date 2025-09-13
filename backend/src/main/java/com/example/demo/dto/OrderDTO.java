@@ -13,7 +13,7 @@ public class OrderDTO {
 	private String status;
 	private List<OrderItemDTO> items;
 
-	// Constructors, getters, and setters
+
 	public OrderDTO() {}
 
 	public OrderDTO(Long id, Long userId, String userEmail, LocalDateTime orderDate,
